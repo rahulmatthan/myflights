@@ -10,6 +10,7 @@ import { eq } from 'drizzle-orm'
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db),
   session: { strategy: 'jwt' },
+  trustHost: true,
   pages: {
     signIn: '/login',
   },
