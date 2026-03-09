@@ -30,6 +30,21 @@ export async function GET(
   const date = format(new Date(leg.scheduledDeparture), 'yyyy-MM-dd')
   const rotation = await flightAware.getAircraftRotation(leg.aircraftRegistration, date)
 
+  if (rotation.length === 0) {
+    // Check if flight is beyond the 2-day window
+    const departureDate = new Date(leg.scheduledDeparture)
+    const twoDaysFromNow = new Date()
+    twoDaysFromNow.setDate(twoDaysFromNow.getDate() + 2)
+    const isFuture = departureDate > twoDaysFromNow
+
+    return NextResponse.json({
+      error: isFuture
+        ? `Rotation data not available yet — flight is more than 2 days away. Check back closer to departure.`
+        : `No rotation found for ${leg.aircraftRegistration} on ${date}. The aircraft may not have been assigned yet.`,
+      aircraftRegistration: leg.aircraftRegistration,
+    }, { status: 404 })
+  }
+
   // Find where the user's flight sits in the rotation
   const userFlightIndex = rotation.findIndex(
     r => r.flightNumber === leg.flightNumber ||
@@ -45,5 +60,6 @@ export async function GET(
     rotation: relevantFlights,
     userFlightIndex: userFlightIndex - start,
     aircraftRegistration: leg.aircraftRegistration,
+    totalRotationLegs: rotation.length,
   })
 }
