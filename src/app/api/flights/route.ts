@@ -9,31 +9,30 @@ import { canManageFlightsFor, getDelegatorIds } from '@/lib/auth/delegate-check'
 
 const addFlightSchema = z.object({
   flightNumber: z.string().min(2).max(10),
-  airlineIata: z.string().length(2),
-  originIata: z.string().length(3),
-  destinationIata: z.string().length(3),
+  // Be lenient on IATA code lengths — some codes differ
+  airlineIata: z.string().min(1).max(4),
+  originIata: z.string().min(2).max(4),
+  destinationIata: z.string().min(2).max(4),
   scheduledDeparture: z.string().datetime(),
   scheduledArrival: z.string().datetime(),
   status: z.string().optional(),
-  aircraftType: z.string().optional(),
-  aircraftRegistration: z.string().optional(),
-  gateDeparture: z.string().optional(),
-  gateArrival: z.string().optional(),
-  terminalDeparture: z.string().optional(),
-  terminalArrival: z.string().optional(),
-  estimatedDeparture: z.string().datetime().optional(),
-  estimatedArrival: z.string().datetime().optional(),
-  delayMinutes: z.number().int().optional(),
+  aircraftType: z.string().optional().nullable(),
+  aircraftRegistration: z.string().optional().nullable(),
+  gateDeparture: z.string().optional().nullable(),
+  gateArrival: z.string().optional().nullable(),
+  terminalDeparture: z.string().optional().nullable(),
+  terminalArrival: z.string().optional().nullable(),
+  estimatedDeparture: z.string().datetime().optional().nullable(),
+  estimatedArrival: z.string().datetime().optional().nullable(),
+  delayMinutes: z.number().int().optional().nullable(),
   travelerId: z.string().optional(),
 })
 
 /** Find or create the default trip for a user */
 async function getOrCreateDefaultTrip(userId: string): Promise<number> {
-  const existing = await db.query.trips.findFirst({
-    where: eq(trips.userId, userId),
-    columns: { id: true },
-  })
-  if (existing) return existing.id
+  // Use raw select — more reliable than relational query API for simple lookups
+  const existing = await db.select({ id: trips.id }).from(trips).where(eq(trips.userId, userId)).limit(1)
+  if (existing.length > 0) return existing[0].id
 
   const [newTrip] = await db.insert(trips).values({
     userId,

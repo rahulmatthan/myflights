@@ -115,6 +115,7 @@ export default function AddFlightDialog() {
 
   async function submitLeg(info: FlightInfo) {
     setAdding(true)
+    setError('')
     const res = await fetch('/api/flights', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -124,6 +125,9 @@ export default function AddFlightDialog() {
       setOpen(false)
       reset()
       router.refresh()
+    } else {
+      const data = await res.json().catch(() => ({}))
+      setError(data.error ? JSON.stringify(data.error) : `Failed to add flight (${res.status})`)
     }
     setAdding(false)
   }
