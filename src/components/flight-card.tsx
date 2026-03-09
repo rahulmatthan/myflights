@@ -10,6 +10,7 @@ import {
   ChevronDown, ChevronUp, MapPin, Edit2, Check, X
 } from 'lucide-react'
 import { format, differenceInMinutes } from 'date-fns'
+import { colorCardBorder, colorCardBg, colorBg } from '@/lib/user-colors'
 
 interface HistoryFlight {
   date: string
@@ -61,6 +62,7 @@ interface FlightLeg {
     inboundStatus?: string | null
     inboundScheduledArrival?: Date | string | null
   } | null
+  traveler?: { id: string; name: string | null; color: string | null } | null
 }
 
 function statusColor(status: string) {
@@ -141,7 +143,7 @@ function EditableField({ label, value, onSave }: { label: string; value: string;
       <span className="text-xs font-medium">{value || <span className="text-muted-foreground italic">not set</span>}</span>
       <button
         onClick={() => { setDraft(value); setEditing(true) }}
-        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground ml-1"
+        className="text-muted-foreground hover:text-foreground ml-1"
       >
         <Edit2 className="h-3 w-3" />
       </button>
@@ -272,7 +274,7 @@ export default function FlightCard({ leg: initialLeg }: { leg: FlightLeg }) {
   const effectiveArr = effectiveTime(leg.actualArrival, leg.estimatedArrival, leg.scheduledArrival)
 
   return (
-    <Card>
+    <Card className={`border-l-4 ${colorCardBorder(leg.traveler?.color)} ${colorCardBg(leg.traveler?.color)}`}>
       <CardContent className="p-4">
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
@@ -281,6 +283,12 @@ export default function FlightCard({ leg: initialLeg }: { leg: FlightLeg }) {
             <span className="font-semibold">{leg.flightNumber}</span>
             {leg.aircraftType && <span className="text-xs text-muted-foreground">{leg.aircraftType}</span>}
             {leg.aircraftRegistration && <span className="text-xs text-muted-foreground">· {leg.aircraftRegistration}</span>}
+            {leg.traveler && (
+              <div className="flex items-center gap-1 ml-1">
+                <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${colorBg(leg.traveler.color)}`} />
+                <span className="text-xs text-muted-foreground">{leg.traveler.name}</span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <span className={`text-xs font-medium px-2 py-1 rounded-full ${statusColor(leg.status)}`}>

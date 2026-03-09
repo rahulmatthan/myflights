@@ -15,6 +15,7 @@ export const users = pgTable('users', {
   notifyInboundDelays: boolean('notify_inbound_delays').default(true),
   notifyConnectionRisk: boolean('notify_connection_risk').default(true),
   minDelayMinutes: integer('min_delay_minutes').default(15),
+  color: text('color').default('blue'),
   createdAt: timestamp('created_at').defaultNow(),
 })
 
@@ -80,6 +81,7 @@ export const flightLegs = pgTable('flight_legs', {
   bookingCode: text('booking_code'),
   seat: text('seat'),
   pnr: text('pnr'),
+  travelerId: text('traveler_id').references(() => users.id, { onDelete: 'set null' }),
   // Detailed timing (wheels off = takeoff, wheels on = landing)
   scheduledOff: timestamp('scheduled_off', { withTimezone: true }),
   estimatedOff: timestamp('estimated_off', { withTimezone: true }),
@@ -173,6 +175,7 @@ export const flightLegsRelations = relations(flightLegs, ({ one, many }) => ({
   trip: one(trips, { fields: [flightLegs.tripId], references: [trips.id] }),
   inboundLeg: one(inboundLegs, { fields: [flightLegs.id], references: [inboundLegs.flightLegId] }),
   statusHistory: many(flightStatusHistory),
+  traveler: one(users, { fields: [flightLegs.travelerId], references: [users.id] }),
 }))
 
 export const inboundLegsRelations = relations(inboundLegs, ({ one }) => ({

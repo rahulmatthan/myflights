@@ -12,7 +12,7 @@ export async function PATCH(request: NextRequest) {
   const allowed = [
     'notifyDelays', 'notifyGateChanges', 'notifyBoarding',
     'notifyCancellations', 'notifyInboundDelays', 'notifyConnectionRisk',
-    'minDelayMinutes',
+    'minDelayMinutes', 'color',
   ]
 
   const updates: Record<string, unknown> = {}

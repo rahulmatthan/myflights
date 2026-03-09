@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Plus, Search, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
+import { colorBg } from '@/lib/user-colors'
 
 interface FlightInfo {
   flightNumber: string
@@ -28,8 +30,17 @@ interface FlightInfo {
   terminalArrival?: string
 }
 
+interface UserEntry {
+  id: string
+  name: string | null
+  email: string
+  color: string | null
+  image: string | null
+}
+
 export default function AddFlightDialog({ tripId }: { tripId: number }) {
   const router = useRouter()
+  const { data: session } = useSession()
   const [open, setOpen] = useState(false)
   const [flightNum, setFlightNum] = useState('')
   const [date, setDate] = useState('')
@@ -38,6 +49,8 @@ export default function AddFlightDialog({ tripId }: { tripId: number }) {
   const [error, setError] = useState('')
   const [showManual, setShowManual] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [users, setUsers] = useState<UserEntry[]>([])
+  const [travelerId, setTravelerId] = useState<string>('')
 
   // Manual entry fields
   const [manual, setManual] = useState({
@@ -46,6 +59,22 @@ export default function AddFlightDialog({ tripId }: { tripId: number }) {
     depTime: '',
     arrTime: '',
   })
+
+  // Fetch users on mount
+  useEffect(() => {
+    fetch('/api/users')
+      .then(r => r.json())
+      .then((data: UserEntry[]) => {
+        setUsers(data)
+        // Default to current user
+        if (session?.user?.id) {
+          setTravelerId(session.user.id)
+        } else if (data.length > 0) {
+          setTravelerId(data[0].id)
+        }
+      })
+      .catch(() => {})
+  }, [session?.user?.id])
 
   function reset() {
     setFlightNum('')
@@ -84,7 +113,7 @@ export default function AddFlightDialog({ tripId }: { tripId: number }) {
     const res = await fetch(`/api/trips/${tripId}/legs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(info),
+      body: JSON.stringify({ ...info, travelerId }),
     })
     if (res.ok) {
       setOpen(false)
@@ -139,6 +168,28 @@ export default function AddFlightDialog({ tripId }: { tripId: number }) {
               />
             </div>
           </div>
+
+          {/* Who's flying? */}
+          {users.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-sm">Who&apos;s flying?</Label>
+              <div className="flex flex-wrap gap-2">
+                {users.map(u => (
+                  <button
+                    key={u.id}
+                    onClick={() => setTravelerId(u.id)}
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs border transition-colors ${
+                      travelerId === u.id ? 'border-primary bg-primary/10 font-medium' : 'border-border hover:bg-muted'
+                    }`}
+                  >
+                    <div className={`w-3 h-3 rounded-full ${colorBg(u.color ?? 'blue')}`} />
+                    {u.name ?? u.email}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <Button onClick={handleSearch} disabled={!flightNum || !date || searching} className="w-full">
             {searching ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
             Search Flight

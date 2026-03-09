@@ -3,11 +3,13 @@ import { db } from '@/db'
 import { trips } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import CreateTripDialog from '@/components/create-trip-dialog'
-import { Plane, Calendar } from 'lucide-react'
-import { format } from 'date-fns'
+import TodayFlights from '@/components/today-flights'
+import { Plane } from 'lucide-react'
+import { format, isToday } from 'date-fns'
+import { colorBg } from '@/lib/user-colors'
 
 export default async function TripsPage() {
   const session = await auth()
@@ -18,17 +20,31 @@ export default async function TripsPage() {
     with: {
       flightLegs: {
         orderBy: (l, { asc }) => [asc(l.sequenceNumber)],
+        with: {
+          traveler: { columns: { id: true, name: true, color: true } },
+        },
       },
     },
     orderBy: (t, { desc }) => [desc(t.createdAt)],
   })
 
+  // Extract today's flights across all trips
+  const todayFlights = userTrips.flatMap(trip =>
+    trip.flightLegs
+      .filter(leg => isToday(new Date(leg.scheduledDeparture)))
+      .map(leg => ({ ...leg, tripName: trip.name }))
+  ).sort((a, b) =>
+    new Date(a.scheduledDeparture).getTime() - new Date(b.scheduledDeparture).getTime()
+  )
+
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">My Trips</h1>
+    <div className="p-4 max-w-2xl mx-auto">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-bold">My Trips</h1>
         <CreateTripDialog />
       </div>
+
+      <TodayFlights flights={todayFlights} />
 
       {userTrips.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
@@ -37,37 +53,46 @@ export default async function TripsPage() {
           <p className="text-sm">Create your first trip to start tracking flights</p>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           {userTrips.map(trip => {
             const firstLeg = trip.flightLegs[0]
             const lastLeg = trip.flightLegs[trip.flightLegs.length - 1]
+            // Get unique travelers
+            const travelers = trip.flightLegs
+              .map(l => l.traveler)
+              .filter((t, i, arr) => t && arr.findIndex(x => x?.id === t.id) === i)
+
             return (
               <Link key={trip.id} href={`/trips/${trip.id}`}>
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{trip.name}</CardTitle>
-                      {firstLeg && (
-                        <Badge variant="outline">
-                          {trip.flightLegs.length} flight{trip.flightLegs.length !== 1 ? 's' : ''}
-                        </Badge>
-                      )}
+                <Card className="hover:shadow-md transition-shadow cursor-pointer active:opacity-80">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <span className="font-semibold">{trip.name}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {trip.flightLegs.length} flight{trip.flightLegs.length !== 1 ? 's' : ''}
+                      </Badge>
                     </div>
-                  </CardHeader>
-                  <CardContent>
                     {firstLeg ? (
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Plane className="h-4 w-4" />
-                          <span>{firstLeg.originIata}</span>
-                          <span>&rarr;</span>
-                          <span>{lastLeg?.destinationIata ?? firstLeg.destinationIata}</span>
+                      <>
+                        <div className="flex items-center gap-3 text-sm mb-2">
+                          <span className="font-medium">{firstLeg.originIata}</span>
+                          <span className="text-muted-foreground">→</span>
+                          <span className="font-medium">{lastLeg?.destinationIata ?? firstLeg.destinationIata}</span>
+                          <span className="text-muted-foreground text-xs">
+                            {format(new Date(firstLeg.scheduledDeparture), 'MMM d, yyyy')}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
-                          <span>{format(new Date(firstLeg.scheduledDeparture), 'MMM d, yyyy')}</span>
-                        </div>
-                      </div>
+                        {travelers.length > 0 && (
+                          <div className="flex items-center gap-1">
+                            {travelers.map(t => t && (
+                              <div key={t.id} className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <div className={`w-2.5 h-2.5 rounded-full ${colorBg(t.color)}`} />
+                                <span>{t.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <p className="text-sm text-muted-foreground">No flights added yet</p>
                     )}

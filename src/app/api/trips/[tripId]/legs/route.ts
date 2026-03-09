@@ -25,6 +25,7 @@ const addLegSchema = z.object({
   estimatedDeparture: z.string().datetime().optional(),
   estimatedArrival: z.string().datetime().optional(),
   delayMinutes: z.number().int().optional(),
+  travelerId: z.string().optional(),
 })
 
 export async function POST(
@@ -70,6 +71,7 @@ export async function POST(
     estimatedDeparture: parsed.data.estimatedDeparture ? new Date(parsed.data.estimatedDeparture) : undefined,
     estimatedArrival: parsed.data.estimatedArrival ? new Date(parsed.data.estimatedArrival) : undefined,
     delayMinutes: parsed.data.delayMinutes ?? 0,
+    travelerId: parsed.data.travelerId ?? session.user.id,
     nextCheckAt,
   }).returning()
 
