@@ -19,7 +19,6 @@ interface TodayFlight {
   gateArrival?: string | null
   terminalArrival?: string | null
   traveler?: { name: string | null; color: string | null } | null
-  tripName: string
 }
 
 function getPickupStatus(flight: TodayFlight): { label: string; sublabel: string; urgent: boolean } {
@@ -92,7 +91,6 @@ export default function TodayFlights({ flights }: { flights: TodayFlight[] }) {
                   <span className="ml-auto text-yellow-600 font-medium">+{flight.delayMinutes}m delay</span>
                 )}
               </div>
-              <div className="text-xs text-muted-foreground mt-0.5">{flight.tripName}</div>
             </div>
           )
         })}

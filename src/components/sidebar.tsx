@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import { Button } from './ui/button'
 
 const navItems = [
-  { href: '/trips', label: 'Trips', icon: Plane },
+  { href: '/flights', label: 'Flights', icon: Plane },
   { href: '/airports', label: 'Airports', icon: Map },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]

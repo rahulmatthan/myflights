@@ -166,6 +166,16 @@ export const notificationLog = pgTable('notification_log', {
   index('notif_log_user_id_idx').on(t.userId),
 ])
 
+export const delegations = pgTable('delegations', {
+  id: serial('id').primaryKey(),
+  delegatorId: text('delegator_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  delegateId: text('delegate_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (t) => [
+  index('delegations_delegate_idx').on(t.delegateId),
+  index('delegations_delegator_idx').on(t.delegatorId),
+])
+
 // Relations
 export const tripsRelations = relations(trips, ({ many }) => ({
   flightLegs: many(flightLegs),
@@ -184,4 +194,9 @@ export const inboundLegsRelations = relations(inboundLegs, ({ one }) => ({
 
 export const flightStatusHistoryRelations = relations(flightStatusHistory, ({ one }) => ({
   flightLeg: one(flightLegs, { fields: [flightStatusHistory.flightLegId], references: [flightLegs.id] }),
+}))
+
+export const delegationsRelations = relations(delegations, ({ one }) => ({
+  delegator: one(users, { fields: [delegations.delegatorId], references: [users.id] }),
+  delegate: one(users, { fields: [delegations.delegateId], references: [users.id] }),
 }))

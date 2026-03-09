@@ -6,7 +6,7 @@ import { Plane, Map, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
-  { href: '/trips', label: 'Trips', icon: Plane },
+  { href: '/flights', label: 'Flights', icon: Plane },
   { href: '/airports', label: 'Delays', icon: Map },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]

@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { colorBg, USER_COLORS } from '@/lib/user-colors'
 
 interface User {
   notifyDelays?: boolean | null
@@ -14,7 +13,6 @@ interface User {
   notifyInboundDelays?: boolean | null
   notifyConnectionRisk?: boolean | null
   minDelayMinutes?: number | null
-  color?: string | null
 }
 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -42,7 +40,6 @@ export default function NotificationSettings({ user }: { user: User }) {
     notifyInboundDelays: user.notifyInboundDelays ?? true,
     notifyConnectionRisk: user.notifyConnectionRisk ?? true,
     minDelayMinutes: user.minDelayMinutes ?? 15,
-    color: user.color ?? 'blue',
   })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -70,25 +67,6 @@ export default function NotificationSettings({ user }: { user: User }) {
         <CardDescription>Configure which alerts you want to receive</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
-        {/* Color picker */}
-        <div className="pb-3 mb-3 border-b">
-          <Label className="text-sm font-medium mb-2 block">Your color</Label>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {USER_COLORS.map(c => (
-              <button
-                key={c}
-                onClick={() => update('color', c)}
-                title={c}
-                className={`w-8 h-8 rounded-full transition-all ${colorBg(c)} ${
-                  settings.color === c
-                    ? 'ring-2 ring-offset-2 ring-foreground scale-110'
-                    : 'hover:scale-105 opacity-70 hover:opacity-100'
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-
         <Toggle label="Flight delays" checked={settings.notifyDelays} onChange={v => update('notifyDelays', v)} />
         <Toggle label="Gate changes" checked={settings.notifyGateChanges} onChange={v => update('notifyGateChanges', v)} />
         <Toggle label="Boarding alerts" checked={settings.notifyBoarding} onChange={v => update('notifyBoarding', v)} />

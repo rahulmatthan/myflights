@@ -10,6 +10,7 @@ export async function PATCH(request: NextRequest) {
 
   const body = await request.json()
   const allowed = [
+    'name',
     'notifyDelays', 'notifyGateChanges', 'notifyBoarding',
     'notifyCancellations', 'notifyInboundDelays', 'notifyConnectionRisk',
     'minDelayMinutes', 'color',

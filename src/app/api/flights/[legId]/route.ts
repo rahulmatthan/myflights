@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { db } from '@/db'
-import { flightLegs, trips } from '@/db/schema'
+import { flightLegs } from '@/db/schema'
 import { eq } from 'drizzle-orm'
+import { canManageFlightsFor } from '@/lib/auth/delegate-check'
 
 export async function DELETE(
   _request: NextRequest,
@@ -19,7 +20,11 @@ export async function DELETE(
     with: { trip: { columns: { userId: true } } },
   })
 
-  if (!leg || leg.trip.userId !== session.user.id) {
+  if (!leg) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  const travelerId = leg.travelerId ?? leg.trip.userId
+  const allowed = await canManageFlightsFor(session.user.id, travelerId)
+  if (!allowed && leg.trip.userId !== session.user.id) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 

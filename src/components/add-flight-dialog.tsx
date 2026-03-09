@@ -30,15 +30,14 @@ interface FlightInfo {
   terminalArrival?: string
 }
 
-interface UserEntry {
+interface ManagedUser {
   id: string
   name: string | null
   email: string
   color: string | null
-  image: string | null
 }
 
-export default function AddFlightDialog({ tripId }: { tripId: number }) {
+export default function AddFlightDialog() {
   const router = useRouter()
   const { data: session } = useSession()
   const [open, setOpen] = useState(false)
@@ -49,7 +48,7 @@ export default function AddFlightDialog({ tripId }: { tripId: number }) {
   const [error, setError] = useState('')
   const [showManual, setShowManual] = useState(false)
   const [adding, setAdding] = useState(false)
-  const [users, setUsers] = useState<UserEntry[]>([])
+  const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([])
   const [travelerId, setTravelerId] = useState<string>('')
 
   // Manual entry fields
@@ -60,21 +59,27 @@ export default function AddFlightDialog({ tripId }: { tripId: number }) {
     arrTime: '',
   })
 
-  // Fetch users on mount
+  // Fetch self + delegators (users who have delegated to me)
   useEffect(() => {
-    fetch('/api/users')
+    if (!session?.user?.id) return
+    const self: ManagedUser = {
+      id: session.user.id,
+      name: session.user.name ?? null,
+      email: session.user.email ?? '',
+      color: null,
+    }
+    setManagedUsers([self])
+    setTravelerId(session.user.id)
+
+    fetch('/api/delegations')
       .then(r => r.json())
-      .then((data: UserEntry[]) => {
-        setUsers(data)
-        // Default to current user
-        if (session?.user?.id) {
-          setTravelerId(session.user.id)
-        } else if (data.length > 0) {
-          setTravelerId(data[0].id)
+      .then((data: { delegators: ManagedUser[] }) => {
+        if (data.delegators?.length > 0) {
+          setManagedUsers([self, ...data.delegators])
         }
       })
       .catch(() => {})
-  }, [session?.user?.id])
+  }, [session?.user?.id, session?.user?.name, session?.user?.email])
 
   function reset() {
     setFlightNum('')
@@ -110,7 +115,7 @@ export default function AddFlightDialog({ tripId }: { tripId: number }) {
 
   async function submitLeg(info: FlightInfo) {
     setAdding(true)
-    const res = await fetch(`/api/trips/${tripId}/legs`, {
+    const res = await fetch('/api/flights', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...info, travelerId }),
@@ -169,12 +174,12 @@ export default function AddFlightDialog({ tripId }: { tripId: number }) {
             </div>
           </div>
 
-          {/* Who's flying? */}
-          {users.length > 0 && (
+          {/* Who's flying? — shows self + delegators */}
+          {managedUsers.length > 1 && (
             <div className="space-y-2">
               <Label className="text-sm">Who&apos;s flying?</Label>
               <div className="flex flex-wrap gap-2">
-                {users.map(u => (
+                {managedUsers.map(u => (
                   <button
                     key={u.id}
                     onClick={() => setTravelerId(u.id)}
@@ -215,7 +220,7 @@ export default function AddFlightDialog({ tripId }: { tripId: number }) {
                 Arr: {format(new Date(flightInfo.scheduledArrival), 'MMM d, HH:mm')}
               </div>
               <Button onClick={() => submitLeg(flightInfo)} disabled={adding} className="w-full">
-                {adding ? 'Adding...' : 'Add to Trip'}
+                {adding ? 'Adding...' : 'Add Flight'}
               </Button>
             </div>
           )}
@@ -270,7 +275,7 @@ export default function AddFlightDialog({ tripId }: { tripId: number }) {
                 disabled={adding || !manual.originIata || !manual.destinationIata || !manual.depTime || !manual.arrTime}
                 className="w-full"
               >
-                {adding ? 'Adding...' : 'Add to Trip'}
+                {adding ? 'Adding...' : 'Add Flight'}
               </Button>
             </div>
           )}

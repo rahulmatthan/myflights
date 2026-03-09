@@ -36,7 +36,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ tri
     <div className="p-4 max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold">{trip.name}</h1>
-        <AddFlightDialog tripId={trip.id} />
+        <AddFlightDialog />
       </div>
 
       <div className="space-y-4">
