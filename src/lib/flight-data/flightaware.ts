@@ -58,6 +58,13 @@ export class FlightAwareProvider implements FlightDataProvider {
       const estimatedIn = parseDate(flight.estimated_in)
       const actualIn = parseDate(flight.actual_in)
 
+      const scheduledOff = parseDate(flight.scheduled_off)
+      const estimatedOff = parseDate(flight.estimated_off)
+      const actualOff = parseDate(flight.actual_off)
+      const scheduledOn = parseDate(flight.scheduled_on)
+      const estimatedOn = parseDate(flight.estimated_on)
+      const actualOn = parseDate(flight.actual_on)
+
       // Calculate delay
       const effectiveDep = actualOut || estimatedOut || scheduledOut
       const delayMinutes = Math.max(0, Math.round((effectiveDep.getTime() - scheduledOut.getTime()) / 60000))
@@ -81,6 +88,12 @@ export class FlightAwareProvider implements FlightDataProvider {
         gateArrival: flight.gate_destination,
         terminalDeparture: flight.terminal_origin,
         terminalArrival: flight.terminal_destination,
+        scheduledOff,
+        estimatedOff,
+        actualOff,
+        scheduledOn,
+        estimatedOn,
+        actualOn,
       }
     } catch (err) {
       console.error('FlightAware getFlightStatus error:', err)

@@ -28,6 +28,12 @@ export interface FlightInfo {
   gateArrival?: string
   terminalDeparture?: string
   terminalArrival?: string
+  scheduledOff?: Date
+  estimatedOff?: Date
+  actualOff?: Date
+  scheduledOn?: Date
+  estimatedOn?: Date
+  actualOn?: Date
 }
 
 export interface FlightLeg {

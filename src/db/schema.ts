@@ -76,6 +76,17 @@ export const flightLegs = pgTable('flight_legs', {
   gateArrival: text('gate_arrival'),
   terminalDeparture: text('terminal_departure'),
   terminalArrival: text('terminal_arrival'),
+  // Booking info
+  bookingCode: text('booking_code'),
+  seat: text('seat'),
+  pnr: text('pnr'),
+  // Detailed timing (wheels off = takeoff, wheels on = landing)
+  scheduledOff: timestamp('scheduled_off', { withTimezone: true }),
+  estimatedOff: timestamp('estimated_off', { withTimezone: true }),
+  actualOff: timestamp('actual_off', { withTimezone: true }),
+  scheduledOn: timestamp('scheduled_on', { withTimezone: true }),
+  estimatedOn: timestamp('estimated_on', { withTimezone: true }),
+  actualOn: timestamp('actual_on', { withTimezone: true }),
   nextCheckAt: timestamp('next_check_at', { withTimezone: true }),
   lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
   createdAt: timestamp('created_at').defaultNow(),
