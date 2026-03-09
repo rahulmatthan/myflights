@@ -2,12 +2,12 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Plane, Map, Settings } from 'lucide-react'
+import { Plane, History, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { href: '/flights', label: 'Flights', icon: Plane },
-  { href: '/airports', label: 'Delays', icon: Map },
+  { href: '/history', label: 'History', icon: History },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 

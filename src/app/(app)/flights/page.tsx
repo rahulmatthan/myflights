@@ -7,7 +7,7 @@ import FlightCard from '@/components/flight-card'
 import AddFlightDialog from '@/components/add-flight-dialog'
 import TodayFlights from '@/components/today-flights'
 import { Plane } from 'lucide-react'
-import { isToday, isPast, startOfDay } from 'date-fns'
+import { isToday, isFuture, startOfDay } from 'date-fns'
 
 export default async function FlightsPage() {
   const session = await auth()
@@ -32,11 +32,7 @@ export default async function FlightsPage() {
   const todayFlights = legs.filter(l => isToday(new Date(l.scheduledDeparture)))
   const upcomingFlights = legs.filter(l => {
     const dep = new Date(l.scheduledDeparture)
-    return !isToday(dep) && !isPast(startOfDay(dep))
-  })
-  const pastFlights = legs.filter(l => {
-    const dep = new Date(l.scheduledDeparture)
-    return !isToday(dep) && isPast(startOfDay(dep))
+    return !isToday(dep) && isFuture(startOfDay(dep))
   })
 
   return (
@@ -55,27 +51,14 @@ export default async function FlightsPage() {
           <p className="text-sm">Add your first flight to start tracking</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {upcomingFlights.length > 0 && (
-            <section>
-              <h2 className="text-sm font-medium text-muted-foreground mb-3">Upcoming</h2>
-              <div className="space-y-3">
-                {upcomingFlights.map(leg => (
-                  <FlightCard key={leg.id} leg={leg} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {pastFlights.length > 0 && (
-            <section>
-              <h2 className="text-sm font-medium text-muted-foreground mb-3">Past</h2>
-              <div className="space-y-3 opacity-60">
-                {pastFlights.slice(-5).reverse().map(leg => (
-                  <FlightCard key={leg.id} leg={leg} />
-                ))}
-              </div>
-            </section>
+        <div className="space-y-3">
+          {upcomingFlights.map(leg => (
+            <FlightCard key={leg.id} leg={leg} />
+          ))}
+          {upcomingFlights.length === 0 && todayFlights.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No upcoming flights. Check <a href="/history" className="underline">History</a> for past flights.
+            </p>
           )}
         </div>
       )}

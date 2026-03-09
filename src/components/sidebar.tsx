@@ -3,13 +3,13 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
-import { Plane, Settings, LogOut, Map } from 'lucide-react'
+import { Plane, Settings, LogOut, History } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from './ui/button'
 
 const navItems = [
   { href: '/flights', label: 'Flights', icon: Plane },
-  { href: '/airports', label: 'Airports', icon: Map },
+  { href: '/history', label: 'History', icon: History },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
