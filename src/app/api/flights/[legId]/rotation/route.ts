@@ -3,8 +3,16 @@ import { auth } from '@/auth'
 import { db } from '@/db'
 import { flightLegs } from '@/db/schema'
 import { eq } from 'drizzle-orm'
-import { flightAware } from '@/lib/flight-data'
-import { format } from 'date-fns'
+import { subDays, format } from 'date-fns'
+
+const BASE_URL = 'https://aeroapi.flightaware.com/aeroapi'
+
+function getHeaders() {
+  return {
+    'x-apikey': process.env.FLIGHTAWARE_API_KEY!,
+    'Accept': 'application/json',
+  }
+}
 
 export async function GET(
   _request: NextRequest,
@@ -23,43 +31,77 @@ export async function GET(
   if (!leg || leg.trip.userId !== session.user.id) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
-  if (!leg.aircraftRegistration) {
-    return NextResponse.json({ error: 'No aircraft assigned yet' }, { status: 404 })
-  }
 
-  const date = format(new Date(leg.scheduledDeparture), 'yyyy-MM-dd')
-  const rotation = await flightAware.getAircraftRotation(leg.aircraftRegistration, date)
+  // Fetch last 5 operations of this flight number (ending on the flight's date)
+  const flightDate = new Date(leg.scheduledDeparture)
+  const end = new Date(`${format(flightDate, 'yyyy-MM-dd')}T23:59:59Z`)
+  const start = new Date(`${format(subDays(flightDate, 5), 'yyyy-MM-dd')}T00:00:00Z`)
 
-  if (rotation.length === 0) {
-    // Check if flight is beyond the 2-day window
-    const departureDate = new Date(leg.scheduledDeparture)
-    const twoDaysFromNow = new Date()
-    twoDaysFromNow.setDate(twoDaysFromNow.getDate() + 2)
-    const isFuture = departureDate > twoDaysFromNow
+  const url = `${BASE_URL}/flights/${encodeURIComponent(leg.flightNumber)}?start=${start.toISOString()}&end=${end.toISOString()}&max_pages=1`
+
+  try {
+    const res = await fetch(url, { headers: getHeaders() })
+    if (!res.ok) {
+      const text = await res.text()
+      console.error('FlightAware history error:', res.status, text)
+      return NextResponse.json({ error: 'Could not fetch flight history from FlightAware' }, { status: 502 })
+    }
+
+    const data = await res.json()
+    const flights: Array<Record<string, unknown>> = data.flights ?? []
+
+    if (flights.length === 0) {
+      return NextResponse.json({ error: 'No recent history found for this flight number.' }, { status: 404 })
+    }
+
+    // Map to a clean shape, most recent first
+    const history = flights
+      .map(f => {
+        const scheduledOut = f.scheduled_out as string | undefined
+        const actualOut = f.actual_out as string | undefined
+        const estimatedOut = f.estimated_out as string | undefined
+        const scheduledIn = f.scheduled_in as string | undefined
+        const actualIn = f.actual_in as string | undefined
+
+        const scheduledOutDate = scheduledOut ? new Date(scheduledOut) : null
+        const effectiveOut = actualOut || estimatedOut || scheduledOut
+        const effectiveOutDate = effectiveOut ? new Date(effectiveOut) : null
+
+        const delayMinutes = scheduledOutDate && effectiveOutDate
+          ? Math.max(0, Math.round((effectiveOutDate.getTime() - scheduledOutDate.getTime()) / 60000))
+          : 0
+
+        const origin = f.origin as Record<string, unknown> | undefined
+        const destination = f.destination as Record<string, unknown> | undefined
+
+        return {
+          date: scheduledOut ? format(new Date(scheduledOut), 'EEE MMM d') : '—',
+          originIata: origin?.code_iata as string ?? '—',
+          destinationIata: destination?.code_iata as string ?? '—',
+          scheduledDeparture: scheduledOut ?? null,
+          actualDeparture: actualOut ?? null,
+          scheduledArrival: scheduledIn ?? null,
+          actualArrival: actualIn ?? null,
+          status: f.status as string ?? 'unknown',
+          delayMinutes,
+          cancelled: (f.status as string)?.toLowerCase().includes('cancel') ?? false,
+        }
+      })
+      .reverse() // oldest first so it reads like a timeline
+
+    // Mark which entry is the user's actual flight
+    const userFlightDate = format(flightDate, 'yyyy-MM-dd')
+    const userIndex = history.findIndex(h =>
+      h.scheduledDeparture && format(new Date(h.scheduledDeparture), 'yyyy-MM-dd') === userFlightDate
+    )
 
     return NextResponse.json({
-      error: isFuture
-        ? `Rotation data not available yet — flight is more than 2 days away. Check back closer to departure.`
-        : `No rotation found for ${leg.aircraftRegistration} on ${date}. The aircraft may not have been assigned yet.`,
-      aircraftRegistration: leg.aircraftRegistration,
-    }, { status: 404 })
+      flightNumber: leg.flightNumber,
+      history,
+      userIndex,
+    })
+  } catch (err) {
+    console.error('Flight history error:', err)
+    return NextResponse.json({ error: 'Failed to fetch flight history' }, { status: 500 })
   }
-
-  // Find where the user's flight sits in the rotation
-  const userFlightIndex = rotation.findIndex(
-    r => r.flightNumber === leg.flightNumber ||
-      (r.originIata === leg.originIata && r.destinationIata === leg.destinationIata)
-  )
-
-  // Return up to 7 flights leading up to (and including) the user's flight
-  const start = Math.max(0, userFlightIndex === -1 ? rotation.length - 7 : userFlightIndex - 6)
-  const end = userFlightIndex === -1 ? rotation.length : userFlightIndex + 1
-  const relevantFlights = rotation.slice(start, end)
-
-  return NextResponse.json({
-    rotation: relevantFlights,
-    userFlightIndex: userFlightIndex - start,
-    aircraftRegistration: leg.aircraftRegistration,
-    totalRotationLegs: rotation.length,
-  })
 }

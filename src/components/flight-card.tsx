@@ -11,14 +11,17 @@ import {
 } from 'lucide-react'
 import { format, differenceInMinutes } from 'date-fns'
 
-interface RotationFlight {
-  flightNumber: string
+interface HistoryFlight {
+  date: string
   originIata: string
   destinationIata: string
-  scheduledDeparture: string
-  scheduledArrival: string
+  scheduledDeparture: string | null
+  actualDeparture: string | null
+  scheduledArrival: string | null
+  actualArrival: string | null
   status: string
   delayMinutes: number
+  cancelled: boolean
 }
 
 interface FlightLeg {
@@ -193,7 +196,7 @@ export default function FlightCard({ leg: initialLeg }: { leg: FlightLeg }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showTimetable, setShowTimetable] = useState(false)
   const [showRotation, setShowRotation] = useState(false)
-  const [rotation, setRotation] = useState<{ rotation: RotationFlight[]; userFlightIndex: number; aircraftRegistration: string; totalRotationLegs: number } | null>(null)
+  const [history, setHistory] = useState<{ flightNumber: string; history: HistoryFlight[]; userIndex: number } | null>(null)
   const [loadingRotation, setLoadingRotation] = useState(false)
   const [rotationError, setRotationError] = useState('')
 
@@ -238,20 +241,20 @@ export default function FlightCard({ leg: initialLeg }: { leg: FlightLeg }) {
   }
 
   async function handleLoadRotation() {
-    if (rotation) { setShowRotation(!showRotation); return }
+    if (history) { setShowRotation(!showRotation); return }
     setLoadingRotation(true)
     setRotationError('')
     try {
       const res = await fetch(`/api/flights/${leg.id}/rotation`)
       if (res.ok) {
-        setRotation(await res.json())
+        setHistory(await res.json())
         setShowRotation(true)
       } else {
         const data = await res.json()
-        setRotationError(data.error ?? 'Could not load rotation')
+        setRotationError(data.error ?? 'Could not load flight history')
       }
     } catch {
-      setRotationError('Could not load rotation')
+      setRotationError('Could not load flight history')
     }
     setLoadingRotation(false)
   }
@@ -426,45 +429,47 @@ export default function FlightCard({ leg: initialLeg }: { leg: FlightLeg }) {
           </div>
         )}
 
-        {/* Expandable: Where's my plane */}
+        {/* Expandable: Recent flight history */}
         <button
           onClick={handleLoadRotation}
           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground w-full"
           disabled={loadingRotation}
         >
           {showRotation ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          {loadingRotation ? 'Loading rotation...' : "Where's my plane?"}
-          {leg.aircraftRegistration && <span className="ml-1 text-muted-foreground">({leg.aircraftRegistration})</span>}
+          {loadingRotation ? 'Loading history...' : 'Recent flight history'}
         </button>
 
         {rotationError && <p className="text-xs text-amber-600 mt-1">{rotationError}</p>}
 
-        {showRotation && rotation && (
+        {showRotation && history && (
           <div className="border rounded-lg overflow-hidden mt-2">
-            <div className="bg-muted/50 px-3 py-1.5 flex items-center justify-between">
+            <div className="bg-muted/50 px-3 py-1.5">
               <span className="text-xs font-medium text-muted-foreground">
-                {rotation.aircraftRegistration} · {rotation.totalRotationLegs} flight{rotation.totalRotationLegs !== 1 ? 's' : ''} today
+                {history.flightNumber} — last {history.history.length} operations
               </span>
-              {rotation.userFlightIndex === -1 && (
-                <span className="text-xs text-amber-600">Your flight not matched in rotation</span>
-              )}
             </div>
             <div className="divide-y">
-              {rotation.rotation.map((r, i) => {
-                const isUserFlight = i === rotation.userFlightIndex
-                const delayed = r.delayMinutes > 0
+              {history.history.map((r, i) => {
+                const isToday = i === history.userIndex
+                const delayed = r.delayMinutes >= 15
+                const effectiveDep = r.actualDeparture || r.scheduledDeparture
+                const effectiveArr = r.actualArrival || r.scheduledArrival
                 return (
-                  <div key={i} className={`flex items-center gap-2 px-3 py-2 text-xs ${isUserFlight ? 'bg-primary/5 border-l-2 border-primary' : ''}`}>
-                    <span className={`font-mono font-medium w-14 shrink-0 ${isUserFlight ? 'text-primary' : ''}`}>{r.flightNumber}</span>
-                    <span className="font-medium w-8 shrink-0">{r.originIata}</span>
-                    <span className="text-muted-foreground shrink-0">→</span>
-                    <span className="font-medium w-8 shrink-0">{r.destinationIata}</span>
-                    <span className="text-muted-foreground shrink-0">{fmt(r.scheduledDeparture)}</span>
-                    <span className="text-muted-foreground shrink-0">–</span>
-                    <span className="text-muted-foreground shrink-0">{fmt(r.scheduledArrival)}</span>
-                    <span className={`ml-auto shrink-0 ${rotationStatusColor(r.status)}`}>{r.status.replace(/_/g, ' ')}</span>
-                    {delayed && <span className="text-yellow-600 font-medium shrink-0">+{r.delayMinutes}m</span>}
-                    {isUserFlight && <span className="text-primary font-semibold shrink-0">← your flight</span>}
+                  <div key={i} className={`px-3 py-2 text-xs ${isToday ? 'bg-primary/5 border-l-2 border-primary' : ''}`}>
+                    <div className="flex items-center gap-2">
+                      <span className={`font-medium w-24 shrink-0 ${isToday ? 'text-primary' : 'text-muted-foreground'}`}>{r.date}</span>
+                      <span className="font-medium">{r.originIata}</span>
+                      <span className="text-muted-foreground">→</span>
+                      <span className="font-medium">{r.destinationIata}</span>
+                      <span className="text-muted-foreground">{fmt(effectiveDep)} – {fmt(effectiveArr)}</span>
+                      <span className={`ml-auto shrink-0 ${r.cancelled ? 'text-red-600' : rotationStatusColor(r.status)}`}>
+                        {r.cancelled ? 'cancelled' : r.status.replace(/_/g, ' ')}
+                      </span>
+                      {delayed && !r.cancelled && (
+                        <span className="text-yellow-600 font-medium shrink-0">+{r.delayMinutes}m</span>
+                      )}
+                      {isToday && <span className="text-primary font-semibold shrink-0">← today</span>}
+                    </div>
                   </div>
                 )
               })}
